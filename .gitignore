@@ -1,0 +1,52 @@
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+
+# Maven
+backend-java/target/
+**/target/
+
+# Gradle
+.gradle/
+build/
+
+# IntelliJ / Eclipse
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Selenium/Chrome
+**/chrome-data/
+**/selenium-profile/
+
+# Environment files
+.env
+.env.*
