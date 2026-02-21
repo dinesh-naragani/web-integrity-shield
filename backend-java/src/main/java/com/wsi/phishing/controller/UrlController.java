@@ -1,12 +1,9 @@
 package com.wsi.phishing.controller;
 
-import ai.onnxruntime.OrtException;
-import com.wsi.phishing.dto.DeepAnalyzeResponse;
-import com.wsi.phishing.dto.UrlRequest;
-import com.wsi.phishing.dto.UrlResponse;
-import com.wsi.phishing.service.Level2Service;
-import com.wsi.phishing.service.OnnxModelService;
-import com.wsi.phishing.util.FeatureExtractor;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +15,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
+import com.wsi.phishing.dto.DeepAnalyzeResponse;
+import com.wsi.phishing.dto.UrlRequest;
+import com.wsi.phishing.dto.UrlResponse;
+import com.wsi.phishing.service.Level2Service;
+import com.wsi.phishing.service.OnnxModelService;
+import com.wsi.phishing.util.FeatureExtractor;
+
 
 /**
  * REST Controller for URL Phishing Check
@@ -104,6 +105,7 @@ public class UrlController {
                 .riskScore(riskScore)
                 .level1Label(level1Label)
                 .triggerLevel2(triggerLevel2)
+                .level2Status(triggerLevel2 ? "FALLBACK" : "NOT_TRIGGERED")
                 .finalVerdict(level1Label)  // Default to Level-1 label
                 .reasons(new ArrayList<>())
                 .build();
@@ -115,6 +117,7 @@ public class UrlController {
                 
                 if (level2Response != null && level2Response.isValid()) {
                     // Level-2 analysis successful - merge into response
+                    response.setLevel2Status("SUCCESS");
                     response.setAnalysisId(level2Response.getAnalysisId());
                     response.setLevel2Score(level2Response.getLevel2Score());
                     response.setFinalVerdict(level2Response.getFinalVerdict());
@@ -127,6 +130,7 @@ public class UrlController {
                 } else {
                     // Level-2 failed - fallback to Level-1
                     log.warn("Level-2 analysis failed or unavailable - using Level-1 result");
+                    response.setLevel2Status("FALLBACK");
                     response.setAnalysisId(null);
                     response.setLevel2Score(null);
                     response.setFinalVerdict(level1Label);
@@ -136,7 +140,7 @@ public class UrlController {
             
             return ResponseEntity.ok(response);
             
-        } catch (OrtException e) {
+        } catch (ai.onnxruntime.OrtException e) {
             log.error("ONNX inference failed", e);
             return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

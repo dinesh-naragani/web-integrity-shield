@@ -18,6 +18,9 @@ public class UrlResponse {
     
     @JsonProperty("triggerLevel2")
     private Boolean triggerLevel2;  // true if riskScore >= 0.7
+
+    @JsonProperty("level2Status")
+    private String level2Status;  // NOT_TRIGGERED, SUCCESS, FALLBACK
     
     @JsonProperty("analysisId")
     private String analysisId;  // UUID from Level-2 (null if not triggered)
@@ -78,6 +81,14 @@ public class UrlResponse {
         this.triggerLevel2 = triggerLevel2;
     }
 
+    public String getLevel2Status() {
+        return level2Status;
+    }
+
+    public void setLevel2Status(String level2Status) {
+        this.level2Status = level2Status;
+    }
+
     public String getAnalysisId() {
         return analysisId;
     }
@@ -115,6 +126,7 @@ public class UrlResponse {
         private Double riskScore;
         private String level1Label;
         private Boolean triggerLevel2;
+        private String level2Status;
         private String analysisId;
         private Double level2Score;
         private String finalVerdict;
@@ -140,6 +152,11 @@ public class UrlResponse {
             return this;
         }
 
+        public Builder level2Status(String level2Status) {
+            this.level2Status = level2Status;
+            return this;
+        }
+
         public Builder analysisId(String analysisId) {
             this.analysisId = analysisId;
             return this;
@@ -162,6 +179,7 @@ public class UrlResponse {
 
         public UrlResponse build() {
             UrlResponse response = new UrlResponse(url, riskScore, level1Label, triggerLevel2);
+            response.setLevel2Status(level2Status);
             response.setAnalysisId(analysisId);
             response.setLevel2Score(level2Score);
             response.setFinalVerdict(finalVerdict);

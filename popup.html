@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Web Integrity Shield</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Web Integrity Shield</h1>
+      <p class="subtitle">Real-time URL risk check</p>
+    </header>
+
+    <section class="status" id="status">
+      <span class="dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">Checking...</span>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <span class="label">URL</span>
+        <span class="value" id="urlValue">-</span>
+      </div>
+      <div class="row">
+        <span class="label">Risk Score</span>
+        <span class="value" id="riskScore">-</span>
+      </div>
+      <div class="row">
+        <span class="label">Final Verdict</span>
+        <span class="value" id="finalVerdict">-</span>
+      </div>
+      <div class="row">
+        <span class="label">Level-2 Status</span>
+        <span class="value" id="level2Status">-</span>
+      </div>
+      <div class="row" id="level2ScoreRow">
+        <span class="label">Level-2 Score</span>
+        <span class="value" id="level2Score">-</span>
+      </div>
+    </section>
+
+    <section class="warning" id="fallbackWarning">
+      Level-2 fallback triggered. Showing Level-1 result only.
+    </section>
+
+    <section class="reasons">
+      <h2>Reasons</h2>
+      <ul id="reasonsList"></ul>
+    </section>
+
+    <section class="offline" id="offline">
+      Backend offline. Start the Java service on port 8080.
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

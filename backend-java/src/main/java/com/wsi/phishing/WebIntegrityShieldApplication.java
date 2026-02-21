@@ -1,9 +1,12 @@
 package com.wsi.phishing;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import com.wsi.phishing.service.Level2Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
 /**
  * Web Integrity Shield Backend Application
@@ -20,8 +23,13 @@ public class WebIntegrityShieldApplication {
     public static void main(String[] args) {
         log.info("Starting Web Integrity Shield Backend...");
         SpringApplication.run(WebIntegrityShieldApplication.class, args);
-        log.info("✓ Application started successfully");
-        log.info("POST /check-url endpoint ready for requests");
-        log.info("GET /health endpoint available for health checks");
+    }
+
+    @Bean
+    public ApplicationRunner startupLogger(Level2Service level2Service) {
+        return args -> {
+            log.info("Web Integrity Shield Backend v2.0.0 started successfully");
+            log.info("Level-2 service availability: {}", level2Service.isAvailable());
+        };
     }
 }

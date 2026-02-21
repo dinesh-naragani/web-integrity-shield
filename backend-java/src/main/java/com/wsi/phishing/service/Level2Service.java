@@ -1,7 +1,7 @@
 package com.wsi.phishing.service;
 
-import com.wsi.phishing.dto.DeepAnalyzeRequest;
-import com.wsi.phishing.dto.DeepAnalyzeResponse;
+import java.time.Duration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,9 +9,10 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
 
-import java.time.Duration;
+import com.wsi.phishing.dto.DeepAnalyzeRequest;
+import com.wsi.phishing.dto.DeepAnalyzeResponse;
+
 
 /**
  * Level-2 Deep Analysis Service
@@ -43,9 +44,13 @@ public class Level2Service {
      * @return DeepAnalyzeResponse with Level-2 analysis, or null if fails
      */
     public DeepAnalyzeResponse analyze(String url, double riskScore) {
+        long startTime = System.currentTimeMillis();
+        boolean fallback = false;
+        DeepAnalyzeResponse response;
         try {
             if (url == null || url.trim().isEmpty()) {
                 log.warn("Level-2: Invalid URL provided");
+                fallback = true;
                 return null;
             }
 
@@ -57,7 +62,7 @@ public class Level2Service {
             String serviceUrl = LEVEL2_SERVICE_URL + DEEP_ANALYZE_ENDPOINT;
             
             // Call Level-2 service with timeout protection
-            DeepAnalyzeResponse response = webClient
+            response = webClient
                 .post()
                 .uri(serviceUrl)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -69,11 +74,13 @@ public class Level2Service {
             
             if (response == null) {
                 log.warn("Level-2: Received null response from service");
+                fallback = true;
                 return null;
             }
             
             if (!response.isValid()) {
                 log.warn("Level-2: Invalid response structure: {}", response);
+                fallback = true;
                 return null;
             }
             
@@ -84,20 +91,31 @@ public class Level2Service {
             
         } catch (WebClientResponseException.ServiceUnavailable e) {
             log.warn("Level-2: Service unavailable (500/503): {}", e.getStatusCode());
+            fallback = true;
             return null;
         } catch (WebClientResponseException.BadRequest e) {
             // SSRF or invalid URL blocked by Level-2
             log.warn("Level-2: Bad request (400) - likely SSRF block: {}", e.getResponseBodyAsString());
+            fallback = true;
             return null;
         } catch (WebClientResponseException e) {
             log.warn("Level-2: HTTP error {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            fallback = true;
             return null;
         } catch (io.netty.handler.timeout.ReadTimeoutException e) {
             log.warn("Level-2: Timeout after {} seconds: {}", TIMEOUT_SECONDS, e.getMessage());
+            fallback = true;
             return null;
         } catch (Exception e) {
             log.error("Level-2: Unexpected error calling service: {}", e.getMessage(), e);
+            fallback = true;
             return null;
+        } finally {
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("Level-2 call completed in {} ms", duration);
+            if (fallback) {
+                log.warn("Level-2 fallback triggered after {} ms", duration);
+            }
         }
     }
 
@@ -110,14 +128,14 @@ public class Level2Service {
         try {
             String healthUrl = LEVEL2_SERVICE_URL + "/health";
             
-            Mono<String> result = webClient
+            String response = webClient
                 .get()
                 .uri(healthUrl)
                 .retrieve()
                 .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(3));
+                .timeout(Duration.ofSeconds(3))
+                .block();
             
-            Object response = result.block();
             return response != null;
         } catch (Exception e) {
             log.debug("Level-2: Service not available: {}", e.getMessage());
