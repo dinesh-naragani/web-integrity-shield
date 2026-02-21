@@ -1,0 +1,207 @@
+ Product Requirements Document (PRD)
+Project: Web Integrity Shield
+Version: v1 (Final-Year Submission Version)
+________________________________________
+1. Product Overview
+Web Integrity Shield is a browser extension–based phishing detection system that performs:
+1.	Level-1 Detection: Fast URL-based phishing detection using a Machine Learning model trained in Python and deployed via ONNX in a Java backend.
+2.	Level-2 Detection: Deep webpage analysis using Selenium triggered only when Level-1 risk exceeds a defined threshold.
+The final output to the user is a browser extension warning system.
+________________________________________
+2. Objectives
+•	Detect phishing websites in real time.
+•	Minimize latency for legitimate websites.
+•	Reduce false positives using two-level analysis.
+•	Demonstrate cross-language ML deployment (Python → ONNX → Java).
+•	Provide a working end-to-end demo system.
+________________________________________
+3. Scope (v1)
+Included
+•	Chrome browser extension
+•	Java Spring Boot backend
+•	ONNX Runtime integration in Java
+•	Python ML training pipeline
+•	Selenium-based deep analysis
+•	REST API communication
+•	Risk score + final verdict
+Excluded (Out of Scope)
+•	Cloud deployment
+•	GPU acceleration
+•	CNN-based visual detection
+•	Production security hardening
+•	Multi-user authentication
+•	Database persistence (optional minimal logging allowed)
+________________________________________
+4. High-Level Architecture
+Browser Extension
+        ↓
+Java Backend (Spring Boot)
+        ↓
+Level-1: ONNX URL Model
+        ↓
+If risk > threshold:
+        ↓
+Level-2: Selenium Deep Analysis
+        ↓
+Final Verdict Returned
+________________________________________
+5. Functional Requirements
+5.1 Browser Extension
+Responsibilities
+•	Detect active tab URL
+•	Send URL to backend API
+•	Display:
+o	Risk score
+o	Status (Safe / Suspicious / Phishing)
+•	Show “Analyzing…” during deep check
+Technical
+•	Manifest V3
+•	background.js
+•	content.js
+•	popup.html
+•	popup.js
+________________________________________
+5.2 Backend (Java – Spring Boot)
+Endpoints
+POST /check-url
+Request:
+{
+  "url": "https://example.com"
+}
+Response:
+{
+  "riskScore": 0.82,
+  "level1Label": "suspicious",
+  "finalLabel": "phishing",
+  "deepAnalysisTriggered": true
+}
+________________________________________
+Backend Logic
+1.	Extract URL features
+2.	Run ONNX inference
+3.	If riskScore < threshold:
+o	Return immediately
+4.	If riskScore >= threshold:
+o	Trigger Selenium deep analysis
+o	Combine results
+o	Return final verdict
+________________________________________
+5.3 Level-1 ML Model (Python → ONNX)
+Dataset
+•	Phishing URLs (PhishTank/OpenPhish)
+•	Legitimate URLs (top domains)
+Features
+•	URL length
+•	Count of dots
+•	Count of hyphens
+•	Count of special characters
+•	HTTPS presence (binary)
+•	IP address presence (binary)
+•	Suspicious keyword count
+Model
+•	Logistic Regression or Random Forest
+•	Evaluation metrics:
+o	Accuracy
+o	Precision
+o	Recall
+o	F1-score
+Output
+•	Probability score (0–1)
+Export
+•	Convert trained model to ONNX
+•	Save as:
+models/url_model.onnx
+________________________________________
+5.4 ONNX Integration (Java)
+•	Use ONNX Runtime Java API
+•	Load model at application startup
+•	Perform inference per request
+•	Ensure thread-safe model usage
+________________________________________
+5.5 Level-2 Deep Analysis (Python + Selenium)
+Trigger Condition
+riskScore >= 0.7
+Steps
+1.	Launch headless Chrome
+2.	Load URL
+3.	Extract:
+o	Page title
+o	Presence of login form
+o	iFrame count
+o	External domain references
+4.	Generate risk score (rule-based or simple ML)
+5.	Return result to Java backend
+Timeout
+•	Max 6 seconds
+________________________________________
+6. Non-Functional Requirements
+Performance
+•	Legitimate URL response time: < 200 ms
+•	Deep analysis worst case: ≤ 6 seconds
+Reliability
+•	Backend must handle malformed URLs
+•	Deep analysis failure must not crash backend
+Security
+•	No user credential storage
+•	Input validation on URL
+•	Rate limiting (basic optional)
+________________________________________
+7. Risk Handling
+Risk	Mitigation
+Selenium slow	Only trigger for high-risk
+Backend crash	Try-catch & timeouts
+ONNX errors	Load model at startup & validate
+Network delay	Local deployment during demo
+________________________________________
+8. Project Structure
+web-integrity-shield/
+│
+├── extension/
+│   ├── manifest.json
+│   ├── background.js
+│   ├── content.js
+│   ├── popup.html
+│   ├── popup.js
+│
+├── backend-java/
+│   ├── src/main/java/
+│   ├── models/url_model.onnx
+│
+├── ml-python/
+│   ├── train.py
+│   ├── feature_extractor.py
+│   ├── export_onnx.py
+│   ├── selenium_analyzer.py
+│
+└── docs/
+________________________________________
+9. Success Criteria
+•	Extension correctly blocks known phishing URLs
+•	Legitimate URLs load without delay
+•	Deep analysis triggers correctly
+•	Demo works reliably in presentation
+•	End-to-end flow verified
+________________________________________
+10. Deliverables
+•	Working browser extension
+•	Running backend server
+•	Trained ONNX model
+•	Selenium analyzer
+•	Evaluation results table
+•	Screenshots for report
+•	GitHub repository with README
+________________________________________
+11. Future Enhancements (Post-Submission)
+•	Visual similarity detection
+•	Brand impersonation detection
+•	Central logging
+•	Cloud deployment
+•	Multi-model ensemble
+________________________________________
+12. Definition of Done
+Project is considered complete when:
+•	All functional requirements implemented
+•	End-to-end demo works 5 consecutive times without failure
+•	Report screenshots captured
+•	Accuracy metrics documented
+•	Code pushed to GitHub

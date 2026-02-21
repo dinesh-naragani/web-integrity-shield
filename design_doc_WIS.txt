@@ -1,0 +1,212 @@
+Design Document
+Project: Web Integrity Shield
+Version: v1 (Final-Year Submission)
+________________________________________
+1. Design Goals
+Primary Goals
+•	Communicate risk clearly and immediately
+•	Avoid unnecessary panic for safe sites
+•	Provide transparency via risk score
+•	Maintain lightweight, minimal UI
+•	Ensure clarity within small popup constraints
+UX Principles
+•	Clarity over complexity
+•	Status-driven interface
+•	Color-coded trust signals
+•	Minimal user interaction required
+________________________________________
+2. Inspirational Design Direction
+Design Style Reference
+Style inspiration:
+•	Clean security dashboards (e.g., browser privacy extensions)
+•	Minimal card-based layouts (modern SaaS style)
+•	High contrast risk indicators
+•	Flat design with soft shadows
+Visual Tone
+•	Professional
+•	Cybersecurity-focused
+•	Trustworthy
+•	Modern but simple
+________________________________________
+3. User Flow
+Flow A: Safe Website
+1.	User opens a website
+2.	Extension automatically checks URL
+3.	Popup shows:
+o	Green shield icon
+o	“This website appears safe”
+o	Risk score (low)
+o	No further action required
+________________________________________
+Flow B: Suspicious Website (Level-2 Triggered)
+1.	Level-1 risk ≥ threshold
+2.	Popup shows:
+o	“Analyzing website...”
+o	Spinner animation
+3.	Final verdict shown:
+o	Red or orange alert
+o	Warning message
+o	Option: “Proceed Anyway”
+________________________________________
+Flow C: Backend Error
+1.	API fails or timeout
+2.	Popup shows:
+o	Grey neutral warning
+o	“Unable to analyze website”
+o	Retry button
+________________________________________
+4. Wireframes (Textual Representation)
+________________________________________
+4.1 Extension Popup – Default State
+---------------------------------
+| 🛡 Web Integrity Shield       |
+|--------------------------------|
+| Status: Checking...           |
+| [ Loading Spinner ]           |
+|--------------------------------|
+| URL: example.com              |
+---------------------------------
+________________________________________
+4.2 Safe Website State
+---------------------------------
+| 🛡 Web Integrity Shield       |
+|--------------------------------|
+| 🟢 SAFE                       |
+| This website appears secure.  |
+|--------------------------------|
+| Risk Score: 0.08              |
+---------------------------------
+Visual Specs
+•	Green accent background (light green)
+•	Shield icon (filled)
+•	Rounded card container
+•	Soft drop shadow
+________________________________________
+4.3 Suspicious State
+---------------------------------
+| 🛡 Web Integrity Shield       |
+|--------------------------------|
+| 🟠 SUSPICIOUS                 |
+| This website may be unsafe.   |
+|--------------------------------|
+| Risk Score: 0.74              |
+|--------------------------------|
+| [ Proceed Anyway ]            |
+---------------------------------
+Visual Specs
+•	Orange accent
+•	Warning triangle icon
+•	Risk score highlighted
+________________________________________
+4.4 Phishing Confirmed State
+---------------------------------
+| 🛡 Web Integrity Shield       |
+|--------------------------------|
+| 🔴 PHISHING DETECTED          |
+| High probability of fraud.    |
+|--------------------------------|
+| Risk Score: 0.93              |
+|--------------------------------|
+| [ Leave Site ]  [ Proceed ]   |
+---------------------------------
+Visual Specs
+•	Red header
+•	Subtle shake animation (optional)
+•	Bold typography
+________________________________________
+5. In-Page Warning Banner (Optional Enhancement)
+If phishing confirmed, inject banner at top of webpage:
+=================================================
+⚠ WARNING: This site is likely phishing.
+Risk Score: 0.93
+[ Leave Site ]    [ Ignore Warning ]
+=================================================
+Banner Design Specs
+•	Full width
+•	Fixed top position
+•	Red background (#E53935)
+•	White bold text
+•	z-index above page content
+________________________________________
+6. Visual Design System
+6.1 Color Palette
+Purpose	Color	Hex
+Safe	Green	#2E7D32
+Suspicious	Orange	#F57C00
+Phishing	Red	#C62828
+Neutral	Gray	#546E7A
+Background	Light Gray	#F5F7FA
+Primary Accent	Dark Blue	#1E3A8A
+________________________________________
+6.2 Typography
+Font:
+•	Inter (preferred)
+•	Fallback: system-ui
+Hierarchy:
+•	Title: 16px bold
+•	Status: 14px semi-bold
+•	Body: 12px regular
+•	Risk score: 12px medium
+________________________________________
+6.3 Layout Rules
+Popup size:
+•	Width: 320px
+•	Padding: 16px
+•	Border radius: 12px
+•	Card layout
+•	8px vertical spacing between elements
+________________________________________
+7. Interaction Design
+Loading State
+•	Spinner animation
+•	Status text: “Analyzing website…”
+Risk Score Display
+•	Numeric value (0–1)
+•	Also show percentage (optional)
+Example:
+Risk Score: 0.82 (82%)
+________________________________________
+8. Accessibility Considerations
+•	Color + text indicator (not color alone)
+•	Minimum contrast ratio 4.5:1
+•	Clear button labels
+•	No flashing animations
+________________________________________
+9. Microcopy (Exact Text Content)
+Safe:
+“This website appears secure.”
+Suspicious:
+“This website may be unsafe. Please proceed with caution.”
+Phishing:
+“High probability of phishing detected. It is recommended to leave this site.”
+Error:
+“Unable to analyze this website at the moment.”
+________________________________________
+10. Responsive Constraints
+Since popup is small:
+•	No scrolling required
+•	No complex graphs
+•	Keep content within 5 visible rows
+________________________________________
+11. UI Components List
+•	Header bar
+•	Status badge
+•	Risk score label
+•	Action buttons
+•	Loading spinner
+•	Warning banner (content script)
+________________________________________
+12. Usability Goals
+•	User understands risk within 1 second
+•	User can decide action within 3 seconds
+•	No more than 2 clicks required
+________________________________________
+13. Definition of Design Completion
+Design is complete when:
+•	All states defined (Safe, Suspicious, Phishing, Error)
+•	Color system defined
+•	Typography defined
+•	Interaction states defined
+•	Banner injection UI specified
+•	No ambiguity in component layout
+

@@ -1,0 +1,173 @@
+Tech Rules & Technology Stack Definition
+Project: Web Integrity Shield
+Version: v1 (Final-Year Submission)
+________________________________________
+1. Purpose
+This document defines the official technology stack and implementation rules for the Web Integrity Shield project.
+It ensures:
+•	Technical consistency
+•	Controlled scope
+•	Cross-component compatibility
+•	Maintainability
+•	Scalability readiness
+No technology outside this document should be introduced without revision approval.
+________________________________________
+2. System Architecture Model
+Architecture Style:
+Client–Server with Multi-Level Detection
+•	Client: Browser Extension
+•	Server: Java Backend
+•	ML Pipeline: Python
+•	Deep Analysis: Selenium Service
+________________________________________
+3. Official Technology Stack
+3.1 Frontend (Browser Extension)
+Category	Technology
+Platform	Google Chrome Extension
+Manifest Version	Manifest V3
+Language	JavaScript (ES6)
+UI	HTML5 + CSS3
+Styling	Plain CSS (No heavy frameworks in v1)
+Communication	Fetch API (REST calls)
+Rules:
+•	No React, Angular, or frameworks in v1
+•	No external UI libraries
+•	Keep extension lightweight (< 1MB)
+•	All logic must be asynchronous
+•	No ML logic inside extension
+________________________________________
+3.2 Backend (Primary Server – Old Phone Server)
+Category	Technology
+Language	Java 17
+Framework	Spring Boot
+Build Tool	Maven
+API Style	REST
+ML Inference	ONNX Runtime (Java)
+JSON Parsing	Jackson (default Spring)
+Rules:
+•	ONNX model must load at application startup
+•	No dynamic model loading per request
+•	All endpoints must validate inputs
+•	Max response time (non-deep analysis): < 200ms
+•	Deep analysis timeout: 6 seconds
+________________________________________
+3.3 Machine Learning Pipeline
+Category	Technology
+Language	Python 3.10+
+ML Library	scikit-learn
+Data Handling	pandas, NumPy
+Model Export	skl2onnx
+Evaluation	sklearn.metrics
+Rules:
+•	Use traditional ML (Logistic Regression or Random Forest)
+•	No deep learning models in v1
+•	Model output must be probability score (0–1)
+•	Dataset split: 70/15/15
+•	All feature extraction must be deterministic
+________________________________________
+3.4 ONNX Integration
+Category	Technology
+Runtime	ONNX Runtime Java
+Model Format	.onnx
+Inference Mode	Synchronous
+Rules:
+•	ONNX model must be compatible with Java runtime
+•	Test model independently before integration
+•	Input tensor format must remain consistent
+________________________________________
+3.5 Deep Analysis Module
+Category	Technology
+Language	Python
+Web Automation	Selenium
+Browser	Headless Chrome
+API Framework	FastAPI (lightweight REST)
+Rules:
+•	Must run in headless mode
+•	Must include max timeout of 6 seconds
+•	Must gracefully handle page load errors
+•	Must not execute harmful scripts
+•	No persistent browser sessions
+________________________________________
+4. Communication Protocols
+Extension → Backend
+•	Protocol: HTTP
+•	Format: JSON
+•	Method: POST
+•	Endpoint: /check-url
+Backend → Deep Analysis Service
+•	Protocol: HTTP
+•	Format: JSON
+•	Timeout: 6 seconds
+•	Endpoint: /deep-check
+________________________________________
+5. Performance Constraints
+Component	Max Target
+URL-only detection	< 200 ms
+Deep analysis	≤ 6 seconds
+Extension UI update	< 100 ms
+________________________________________
+6. Security Rules
+•	No credential storage
+•	Input sanitization required
+•	Validate URLs before processing
+•	Disable dangerous Selenium flags
+•	No external script execution beyond page load
+________________________________________
+7. Code Organization Rules
+Repository Structure
+web-integrity-shield/
+│
+├── extension/
+├── backend-java/
+├── ml-python/
+└── docs/
+Rules:
+•	Each module must be independent
+•	No cross-language code mixing
+•	Backend and ML training must remain separate
+________________________________________
+8. Versioning Rules
+•	Git repository required
+•	Semantic versioning:
+o	v1.0.0 = Submission version
+•	No direct commits to main branch without testing
+________________________________________
+9. Deployment Rules (v1)
+•	Local network deployment
+•	Backend runs on old phone server
+•	Extension configured with static backend URL
+•	No cloud hosting required
+________________________________________
+10. Scalability Considerations (Future Ready)
+Although v1 is local:
+•	Backend must be stateless
+•	APIs must be REST compliant
+•	Deep analysis must be modular
+•	Model must be replaceable without changing API
+________________________________________
+11. Technology Restrictions (Important)
+The following are NOT allowed in v1:
+•	Deep Learning frameworks (PyTorch/TensorFlow)
+•	Cloud services
+•	Microservices orchestration
+•	Kubernetes
+•	Database clusters
+•	React/Vue frontend
+This prevents scope creep.
+________________________________________
+12. Definition of Technical Completion
+Project is technically complete when:
+•	Extension successfully communicates with backend
+•	ONNX inference returns valid probabilities
+•	Selenium triggers only when threshold exceeded
+•	End-to-end flow works reliably
+•	No crashes under malformed URL input
+________________________________________
+13. Approved Core Stack Summary
+Layer	Tech
+Extension	JS + HTML + CSS
+Backend	Java 17 + Spring Boot
+ML Training	Python + scikit-learn
+ML Inference	ONNX Runtime (Java)
+Deep Analysis	Python + Selenium
+

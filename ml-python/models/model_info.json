@@ -1,0 +1,7 @@
+{
+  "type": "LogisticRegression",
+  "framework": "scikit-learn",
+  "input_features": 7,
+  "output": "probability_score (0-1)",
+  "notes": "ONNX export can be done separately if needed"
+}

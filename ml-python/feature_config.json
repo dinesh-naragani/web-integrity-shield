@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "feature_names": [
+    "url_length",
+    "dot_count",
+    "hyphen_count",
+    "special_char_count",
+    "has_https",
+    "has_ip",
+    "suspicious_keyword_count"
+  ],
+  "num_features": 7,
+  "threshold": 0.7
+}
