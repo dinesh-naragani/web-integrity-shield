@@ -1,53 +1,172 @@
-# Java
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+venv311/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Python virtual environments
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ML Models (large binary files)
+*.pkl
+*.onnx
+*.h5
+*.pt
+*.pth
+*.model
+*.weights
+
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
 *.class
+*.log
 *.jar
 *.war
 *.ear
-*.log
+*.zip
+*.tar.gz
+*.rar
 hs_err_pid*
+replay_pid*
 
-# Maven
-backend-java/target/
-**/target/
+# Maven specific
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
-# Gradle
-.gradle/
-build/
-
-# IntelliJ / Eclipse
-.idea/
-*.iml
-.classpath
-.project
-.settings/
-
-# VS Code
+# IDE
 .vscode/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.log
-.venv/
-venv/
-venv311/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Node
-node_modules/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.iml
+*.ipr
+*.iws
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Selenium/Chrome
-**/chrome-data/
-**/selenium-profile/
+# Logs
+*.log
+logs/
+*.log.*
+backend.log
 
-# Environment files
+# Environment variables
 .env
-.env.*
+.env.local
+.env.*.local
+
+# Node modules (if any frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Datasets (potentially large)
+datasets/*.csv
+!datasets/README.md
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+.cache/
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Documentation builds
+docs/_build/
+
+# PyCharm
+.idea/
+
+# Compiled source
+*.com
+*.dll
+*.exe
+*.o
+*.so
+
+# Package files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Database
+*.sqlite
+*.db
+*.sql
+
+# Credentials & keys
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# MacOS
+.AppleDouble
+.LSOverride
+
+# Windows
+[Tt]humbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk

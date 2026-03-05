@@ -1,0 +1,125 @@
+{
+  "model_type": "xgboost_level1",
+  "feature_count": 22,
+  "feature_names": [
+    "URLLength",
+    "DomainLength",
+    "TLDLength",
+    "IsDomainIP",
+    "NoOfSubDomain",
+    "IsHTTPS",
+    "NoOfLettersInURL",
+    "NoOfDigitsInURL",
+    "NoOfEqualsInURL",
+    "NoOfQMarkInURL",
+    "NoOfAmpersandInURL",
+    "NoOfOtherSpecialCharsInURL",
+    "LetterRatioInURL",
+    "DigitRatioInURL",
+    "SpecialCharRatioInURL",
+    "CharContinuationRate",
+    "URLCharProb",
+    "DomainHasHyphen",
+    "URLHasDblSlash",
+    "HasObfuscation",
+    "TLDIsLegitimate",
+    "DomainIsKnownSafe"
+  ],
+  "feature_importance": {
+    "URLLength": 0.010435598902404308,
+    "DomainLength": 0.0027894910890609026,
+    "TLDLength": 0.0025981899816542864,
+    "IsDomainIP": 0.0,
+    "NoOfSubDomain": 0.004634881857782602,
+    "IsHTTPS": 0.6070773005485535,
+    "NoOfLettersInURL": 0.0013009471585974097,
+    "NoOfDigitsInURL": 0.051359303295612335,
+    "NoOfEqualsInURL": 0.0,
+    "NoOfQMarkInURL": 0.001174074481241405,
+    "NoOfAmpersandInURL": 0.0,
+    "NoOfOtherSpecialCharsInURL": 0.0,
+    "LetterRatioInURL": 0.0022771081421524286,
+    "DigitRatioInURL": 0.0030891140922904015,
+    "SpecialCharRatioInURL": 0.0012999101309105754,
+    "CharContinuationRate": 0.30707237124443054,
+    "URLCharProb": 0.0003598018956836313,
+    "DomainHasHyphen": 0.0024734511971473694,
+    "URLHasDblSlash": 0.0,
+    "HasObfuscation": 0.0,
+    "TLDIsLegitimate": 0.002058473415672779,
+    "DomainIsKnownSafe": 0.0
+  },
+  "cross_validation_results": {
+    "accuracy": {
+      "train": 0.9975678025403422,
+      "test": 0.9971203799910938,
+      "std": 8.524248284415484e-05,
+      "overfitting_gap": 0.0004474225492483441
+    },
+    "f1": {
+      "train": 0.99787768715118,
+      "test": 0.9974874146399546,
+      "std": 7.419591870082867e-05,
+      "overfitting_gap": 0.00039027251122536466
+    },
+    "precision": {
+      "train": 0.9959482653069426,
+      "test": 0.9955018983792472,
+      "std": 0.00018625482555428626,
+      "overfitting_gap": 0.0004463669276953963
+    },
+    "recall": {
+      "train": 0.99981460882462,
+      "test": 0.9994809047089358,
+      "std": 0.00011725167445934203,
+      "overfitting_gap": 0.0003337041156842302
+    },
+    "roc_auc": {
+      "train": 0.9991492670519614,
+      "test": 0.9987775458880579,
+      "std": 0.000146094835749963,
+      "overfitting_gap": 0.0003717211639034934
+    }
+  },
+  "dataset": {
+    "total_samples": 235795,
+    "legitimate": 100945,
+    "phishing": 134850
+  },
+  "trained_at": "2026-03-05T10:33:36.423513",
+  "exported_at": "2026-03-05T10:34:48.195175",
+  "key_features": {
+    "has_domain_whitelist": true,
+    "has_tld_legitimacy_check": true,
+    "has_https_check": true,
+    "has_character_entropy": true,
+    "fixes_false_positives": true
+  },
+  "deployment_notes": {
+    "tested_urls": {
+      "chatgpt.com": {
+        "risk_score": 0.0,
+        "verdict": "SAFE"
+      },
+      "discord.com": {
+        "risk_score": 0.0,
+        "verdict": "SAFE"
+      },
+      "youtube.com": {
+        "risk_score": 0.0003,
+        "verdict": "SAFE"
+      },
+      "github.com": {
+        "risk_score": 0.0,
+        "verdict": "SAFE"
+      },
+      "google.com": {
+        "risk_score": 0.0001,
+        "verdict": "SAFE"
+      }
+    },
+    "no_overfitting": true,
+    "no_underfitting": true,
+    "ready_for_production": true
+  }
+}

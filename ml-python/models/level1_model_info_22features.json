@@ -1,0 +1,77 @@
+{
+  "model_type": "hybrid_xgboost",
+  "approach": "domain_whitelist + ml_model",
+  "n_features": 22,
+  "feature_names": [
+    "URLLength",
+    "DomainLength",
+    "TLDLength",
+    "IsDomainIP",
+    "NoOfSubDomain",
+    "IsHTTPS",
+    "NoOfLettersInURL",
+    "NoOfDigitsInURL",
+    "NoOfEqualsInURL",
+    "NoOfQMarkInURL",
+    "NoOfAmpersandInURL",
+    "NoOfOtherSpecialCharsInURL",
+    "LetterRatioInURL",
+    "DigitRatioInURL",
+    "SpecialCharRatioInURL",
+    "CharContinuationRate",
+    "URLCharProb",
+    "DomainHasHyphen",
+    "URLHasDblSlash",
+    "HasObfuscation",
+    "TLDIsLegitimate",
+    "DomainIsKnownSafe"
+  ],
+  "feature_importance": {
+    "URLLength": 0.0170624740421772,
+    "DomainLength": 0.014933384954929352,
+    "TLDLength": 0.015287495218217373,
+    "IsDomainIP": 0.0,
+    "NoOfSubDomain": 0.025127699598670006,
+    "IsHTTPS": 0.38778039813041687,
+    "NoOfLettersInURL": 0.014231164008378983,
+    "NoOfDigitsInURL": 0.17498989403247833,
+    "NoOfEqualsInURL": 0.015891849994659424,
+    "NoOfQMarkInURL": 0.02349921688437462,
+    "NoOfAmpersandInURL": 0.0,
+    "NoOfOtherSpecialCharsInURL": 0.007626933045685291,
+    "LetterRatioInURL": 0.01033638883382082,
+    "DigitRatioInURL": 0.0915217325091362,
+    "SpecialCharRatioInURL": 0.0069925799034535885,
+    "CharContinuationRate": 0.15691672265529633,
+    "URLCharProb": 0.020505370572209358,
+    "DomainHasHyphen": 0.009096018970012665,
+    "URLHasDblSlash": 0.0007678875117562711,
+    "HasObfuscation": 0.0,
+    "TLDIsLegitimate": 0.007432826329022646,
+    "DomainIsKnownSafe": 0.0
+  },
+  "whitelist_size": 30,
+  "cross_val_results": {
+    "accuracy": {
+      "test": 0.996416378633983,
+      "std": 0.00013544578487817367
+    },
+    "f1": {
+      "test": 0.9968740589177264,
+      "std": 0.00011827660259317538
+    },
+    "precision": {
+      "test": 0.9945965621668396,
+      "std": 0.000124274926596538
+    },
+    "recall": {
+      "test": 0.999162031887282,
+      "std": 0.00018553942904258035
+    },
+    "roc_auc": {
+      "test": 0.9987828614329478,
+      "std": 0.00013862078829402578
+    }
+  },
+  "trained_at": "2026-03-05T12:21:18.843211"
+}

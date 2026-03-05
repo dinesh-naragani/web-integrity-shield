@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ai.onnxruntime.OnnxMap;
 import ai.onnxruntime.OnnxSequence;
 import ai.onnxruntime.OnnxTensor;
@@ -24,13 +25,14 @@ import jakarta.annotation.PostConstruct;
 /**
  * ONNX Model Service for Level-1 Phishing Detection
  * 
- * Loads Random Forest model at application startup.
- * Provides synchronous inference on URL features.
+ * Loads XGBoost model at application startup.
+ * Provides synchronous inference on comprehensive URL features.
  * 
- * Model: url_model.onnx
- * - Input: float[1, 7] (7 URL features)
- * - Output: float[1, 2] (probability distribution for 2 classes)
- *   Index 1: Probability of phishing (class 1)
+ * Model: url_model.onnx (ONNX format)
+ * - Input: float[1, 22] (22 comprehensive URL features)
+ * - Features include domain whitelist, TLD legitimacy, entropy, etc.
+ * - Output: double (probability of phishing, 0.0-1.0)
+ *   0.0 = Legitimate, 1.0 = Phishing
  */
 @Service
 public class OnnxModelService {
@@ -43,6 +45,11 @@ public class OnnxModelService {
     private OrtEnvironment ortEnvironment;
     private OrtSession ortSession;
     
+    // Scaler parameters for feature normalization
+    private double[] scalerMean;
+    private double[] scalerScale;
+    private int nFeatures = 22;
+    
     /**
      * Initialize ONNX Runtime environment and load model at startup
      */
@@ -50,6 +57,9 @@ public class OnnxModelService {
     public void init() {
         try {
             log.info("Initializing ONNX Runtime...");
+            
+            // Load scaler parameters first
+            loadScalerParameters();
             
             // Create ONNX Runtime environment (thread-safe)
             ortEnvironment = OrtEnvironment.getEnvironment();
@@ -70,34 +80,82 @@ public class OnnxModelService {
     }
     
     /**
+     * Load StandardScaler parameters from JSON configuration file
+     */
+    private void loadScalerParameters() {
+        try {
+            ClassPathResource resource = new ClassPathResource("models/scaler_params.json");
+            ObjectMapper mapper = new ObjectMapper();
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> params = mapper.readValue(resource.getInputStream(), Map.class);
+            
+            @SuppressWarnings("unchecked")
+            List<Double> meanList = (List<Double>) params.get("mean");
+            @SuppressWarnings("unchecked")
+            List<Double> scaleList = (List<Double>) params.get("scale");
+            
+            scalerMean = meanList.stream().mapToDouble(Double::doubleValue).toArray();
+            scalerScale = scaleList.stream().mapToDouble(Double::doubleValue).toArray();
+            nFeatures = ((Number) params.get("n_features")).intValue();
+            
+            log.info("✓ Scaler parameters loaded: {} features", nFeatures);
+            log.debug("  Mean[0]: {}", scalerMean[0]);
+            log.debug("  Scale[0]: {}", scalerScale[0]);
+            
+        } catch (IOException e) {
+           log.warn("Failed to load scaler parameters: {}", e.getMessage());
+            log.warn("Proceeding without feature normalization (may affect accuracy)");
+        }
+    }
+    
+    /**
+     * Scale features using StandardScaler parameters (transform: (x - mean) / scale)
+     */
+    private float[] scaleFeatures(float[] rawFeatures) {
+        if (scalerMean == null || scalerScale == null) {
+            log.warn("Scaler not initialized, returning raw features");
+            return rawFeatures;
+        }
+        
+        float[] scaledFeatures = new float[rawFeatures.length];
+        for (int i = 0; i < rawFeatures.length; i++) {
+            scaledFeatures[i] = (float) ((rawFeatures[i] - scalerMean[i]) / scalerScale[i]);
+        }
+        return scaledFeatures;
+    }
+    
+    /**
      * Run inference on extracted features
      * 
-     * @param features Array of 7 float values (URL features)
+     * @param features Array of 22 float values (comprehensive URL features)
      * @return Risk score (probability of phishing) as double between 0 and 1
      * @throws OrtException if inference fails
      */
     public double predict(float[] features) throws OrtException {
-        if (features == null || features.length != 7) {
-            throw new IllegalArgumentException("Expected 7 features, got " + 
+        if (features == null || features.length != 22) {
+            throw new IllegalArgumentException("Expected 22 features, got " + 
                 (features == null ? 0 : features.length));
         }
         
         try {
-            // Create input tensor: shape [1, 7] for batch size 1, 7 features
-            float[][] inputArray = new float[1][7];
-            System.arraycopy(features, 0, inputArray[0], 0, 7);
+            // Apply StandardScaler normalization: (x - mean) / scale
+            float[] scaledFeatures = scaleFeatures(features);
+            
+            // Create input tensor: shape [1, 22] for batch size 1, 22 features
+            float[][] inputArray = new float[1][22];
+            System.arraycopy(scaledFeatures, 0, inputArray[0], 0, 22);
             
             OnnxTensor inputTensor = OnnxTensor.createTensor(ortEnvironment, inputArray);
             
             // Prepare input map with input name "float_input"
-            // Note: Check ONNX model metadata for actual input/output names
             Map<String, OnnxTensor> inputs = new HashMap<>();
             inputs.put("float_input", inputTensor);
             
-            // Run inference
+            // Run inference with 22-feature model
             try (var outputs = ortSession.run(inputs)) {
                 double phishingProbability = extractPhishingProbability(outputs);
-                log.debug("Inference result - Phishing probability: {}", phishingProbability);
+                log.debug("22-Feature Model Inference - Risk Score: {}", phishingProbability);
                 return phishingProbability;
             }
             
@@ -128,37 +186,68 @@ public class OnnxModelService {
             throw new OrtException("ONNX outputs are empty");
         }
 
+        // ONNX XGBoost classifier outputs:
+        // - "label": int64[batch] - classification result  
+        // - "probabilities": float32[batch, 2] - [prob_class_0, prob_class_1]
+        // We want prob_class_1 (phishing probability)
+        
+        try {
+            // Try to get "probabilities" output by name first
+            Object probOutput = outputs.get("probabilities");
+            if (probOutput != null) {
+                try {
+                    Double prob = tryExtractProbability(probOutput);
+                    if (prob != null) {
+                        log.debug("✓ Extracted phishing probability from 'probabilities' output: {}", prob);
+                        return prob;
+                    }
+                } catch (OrtException e) {
+                    log.warn("Could not access 'probabilities' by name: {}", e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error accessing 'probabilities': {}", e.getMessage());
+        }
+
+        // Fallback: iterate through outputs and find float array/matrix
         for (var output : outputs) {
             Object value = output.getValue();
             if (log.isDebugEnabled()) {
                 log.debug("ONNX output type: {}", value == null ? "null" : value.getClass().getName());
-                log.debug("ONNX output value: {}", value);
             }
-            Double probability = tryExtractProbability(value);
-            if (probability != null) {
-                return probability;
+            
+            // Skip integer outputs (classification label)
+            if (value instanceof long[] || value instanceof int[]) {
+                log.debug("Skipping integer classification output");
+                continue;
+            }
+            
+            try {
+                Double probability = tryExtractProbability(value);
+                if (probability != null) {
+                    log.debug("✓ Extracted phishing probability from fallback: {}", probability);
+                    return probability;
+                }
+            } catch (OrtException e) {
+                log.warn("Error extracting probability: {}", e.getMessage());
+                continue;
             }
         }
 
         throw new OrtException("Unable to extract phishing probability from ONNX outputs");
     }
 
-    private Double tryExtractProbability(Object value) {
-        try {
-            if (value instanceof OnnxTensor tensor) {
-                return tryExtractProbability(tensor.getValue());
-            }
+    private Double tryExtractProbability(Object value) throws OrtException {
+        if (value instanceof OnnxTensor tensor) {
+            return tryExtractProbability(tensor.getValue());
+        }
 
-            if (value instanceof OnnxSequence sequence) {
-                return tryExtractProbability(sequence.getValue());
-            }
+        if (value instanceof OnnxSequence sequence) {
+            return tryExtractProbability(sequence.getValue());
+        }
 
-            if (value instanceof OnnxMap onnxMap) {
-                return getProbabilityFromMap(onnxMap.getValue());
-            }
-        } catch (OrtException e) {
-            log.warn("Failed to read ONNX output value: {}", e.getMessage());
-            return null;
+        if (value instanceof OnnxMap onnxMap) {
+            return getProbabilityFromMap(onnxMap.getValue());
         }
 
         if (value instanceof float[][] floatMatrix && floatMatrix.length > 0 && floatMatrix[0].length > 1) {
@@ -178,25 +267,20 @@ public class OnnxModelService {
         }
 
         if (value instanceof List<?> listValue && !listValue.isEmpty()) {
-            Object first = listValue.get(0);
-            if (first instanceof OnnxMap onnxMap) {
-                try {
+            try {
+                Object first = listValue.get(0);
+                if (first instanceof OnnxMap onnxMap) {
                     return getProbabilityFromMap(onnxMap.getValue());
-                } catch (OrtException e) {
-                    log.warn("Failed to read ONNX map value: {}", e.getMessage());
-                    return null;
                 }
-            }
-            if (first instanceof Map<?, ?> map) {
-                return getProbabilityFromMap(map);
-            }
-            if (first instanceof OnnxTensor tensor) {
-                try {
+                if (first instanceof Map<?, ?> map) {
+                    return getProbabilityFromMap(map);
+                }
+                if (first instanceof OnnxTensor tensor) {
                     return tryExtractProbability(tensor.getValue());
-                } catch (OrtException e) {
-                    log.warn("Failed to read ONNX tensor value: {}", e.getMessage());
-                    return null;
                 }
+            } catch (OrtException e) {
+                log.warn("Failed to read ONNX list value: {}", e.getMessage());
+                return null;
             }
         }
 
@@ -220,6 +304,7 @@ public class OnnxModelService {
             if (resourcePath.startsWith("/")) {
                 resourcePath = resourcePath.substring(1);
             }
+            @SuppressWarnings("null")
             ClassPathResource resource = new ClassPathResource(resourcePath);
             if (!resource.exists()) {
                 throw new FileNotFoundException("ONNX model not found at classpath:" + resourcePath);

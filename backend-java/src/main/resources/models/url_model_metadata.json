@@ -1,0 +1,108 @@
+{
+  "model_type": "xgboost",
+  "framework": "xgboost",
+  "source": "PhiUSIIL_Phishing_URL_Dataset.csv",
+  "metrics": {
+    "f1": 1.0,
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "roc_auc": 1.0,
+    "time": 1.8937833309173584,
+    "cm": [
+      [
+        15142,
+        0
+      ],
+      [
+        0,
+        20228
+      ]
+    ]
+  },
+  "dataset_info": {
+    "source": "PhiUSIIL_Phishing_URL_Dataset.csv",
+    "total_rows": 235795,
+    "phishing": 134850,
+    "legitimate": 100945
+  },
+  "features": {
+    "count": 50,
+    "names": [
+      "URLLength",
+      "DomainLength",
+      "IsDomainIP",
+      "URLSimilarityIndex",
+      "CharContinuationRate",
+      "TLDLegitimateProb",
+      "URLCharProb",
+      "TLDLength",
+      "NoOfSubDomain",
+      "HasObfuscation",
+      "NoOfObfuscatedChar",
+      "ObfuscationRatio",
+      "NoOfLettersInURL",
+      "LetterRatioInURL",
+      "NoOfDegitsInURL",
+      "DegitRatioInURL",
+      "NoOfEqualsInURL",
+      "NoOfQMarkInURL",
+      "NoOfAmpersandInURL",
+      "NoOfOtherSpecialCharsInURL",
+      "SpacialCharRatioInURL",
+      "IsHTTPS",
+      "LineOfCode",
+      "LargestLineLength",
+      "HasTitle",
+      "DomainTitleMatchScore",
+      "URLTitleMatchScore",
+      "HasFavicon",
+      "Robots",
+      "IsResponsive",
+      "NoOfURLRedirect",
+      "NoOfSelfRedirect",
+      "HasDescription",
+      "NoOfPopup",
+      "NoOfiFrame",
+      "HasExternalFormSubmit",
+      "HasSocialNet",
+      "HasSubmitButton",
+      "HasHiddenFields",
+      "HasPasswordField",
+      "Bank",
+      "Pay",
+      "Crypto",
+      "HasCopyrightInfo",
+      "NoOfImage",
+      "NoOfCSS",
+      "NoOfJS",
+      "NoOfSelfRef",
+      "NoOfEmptyRef",
+      "NoOfExternalRef"
+    ],
+    "preprocessor": "None",
+    "mean": null,
+    "scale": null,
+    "note": "Multi-column features extracted from website content during Level-2 analysis"
+  },
+  "model_config": {
+    "input_features": 50,
+    "output_classes": 2,
+    "threshold": 0.5,
+    "risk_levels": {
+      "low": [
+        0.0,
+        0.3
+      ],
+      "medium": [
+        0.3,
+        0.7
+      ],
+      "high": [
+        0.7,
+        1.0
+      ]
+    },
+    "usage": "Level-2 Deep Analysis (triggered when Level-1 score >= 0.7)"
+  }
+}

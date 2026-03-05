@@ -1,0 +1,5 @@
+http://paypa1.com/verify-account
+http://45.77.12.99/login?session=abc123&user=admin
+http://secure-login-paypal-verify.tk/account/confirm
+http://apple-id-security-update.ga/login?ref=dkdfjk
+https://secure-amazon-login-verify.ml/account/password-reset

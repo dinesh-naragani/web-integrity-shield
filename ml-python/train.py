@@ -1,407 +1,298 @@
+#!/usr/bin/env python3
 """
-Train Level-1 Phishing Detection Model
+Level-1 training using PhiUSIIL multi-column dataset only.
 
-This script:
-1. Loads/creates training dataset (phishing + legitimate URLs)
-2. Extracts features using feature_extractor.py
-3. Trains Logistic Regression model
-4. Evaluates model performance
-5. Saves trained model as .pkl
-
-Dataset split: 70% train, 15% validation, 15% test
+Why:
+- PhiUSIIL has rich engineered columns (56 total, 51 numeric features)
+- Other datasets are URL-only and are intentionally kept separate
 """
 
+import json
 import os
 import pickle
+import time
+
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
+import torch
+import xgboost as xgb
+from sklearn.ensemble import VotingClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
-from feature_extractor import extract_features, get_feature_names, validate_features
-import json
 
 
-# Real legitimate URLs from top domains
-# These represent safe, trusted websites
-# Expanded list for better training balance
-LEGITIMATE_URLS = [
-    # Tech companies
-    'https://www.google.com',
-    'https://www.microsoft.com',
-    'https://www.apple.com',
-    'https://www.amazon.com',
-    'https://www.github.com',
-    'https://stackoverflow.com',
-    'https://www.wikipedia.org',
-    'https://www.youtube.com',
-    'https://www.linkedin.com',
-    'https://www.twitter.com',
-    'https://www.facebook.com',
-    'https://www.instagram.com',
-    'https://www.reddit.com',
-    'https://www.github.com/features',
-    'https://docs.python.org',
-    'https://www.w3schools.com',
-    'https://www.udemy.com',
-    'https://www.coursera.org',
-    'https://www.netflix.com',
-    'https://www.spotify.com',
-    # Banking/Finance
-    'https://www.bofa.com',
-    'https://www.chase.com',
-    'https://www.wellsfargo.com',
-    'https://www.citadel.com',
-    'https://www.paypal.com',
-    'https://www.wise.com',
-    'https://www.stripe.com',
-    'https://www.coinbase.com',
-    # News/Media
-    'https://www.bbc.com',
-    'https://www.cnn.com',
-    'https://www.reuters.com',
-    'https://www.theguardian.com',
-    'https://www.nytimes.com',
-    # E-commerce
-    'https://www.ebay.com',
-    'https://www.alibaba.com',
-    'https://www.shopify.com',
-    'https://www.etsy.com',
-    # Social/Communication
-    'https://www.slack.com',
-    'https://www.zoom.us',
-    'https://www.discord.com',
-    'https://www.telegram.org',
-    # Additional trusted sites
-    'https://www.mozilla.org',
-    'https://www.openssl.org',
-    'https://www.gnu.org',
-    'https://www.linux.org',
-    'https://www.apache.org',
-    'https://www.nginx.org',
-    'https://www.rust-lang.org',
-    'https://golang.org',
-    'https://nodejs.org',
-    'https://www.oracle.com',
-    'https://www.ibm.com',
-    'https://www.intel.com',
-    'https://www.hp.com',
-    'https://www.dell.com',
-    'https://www.lenovo.com',
-]
+DATASET_PATH = os.path.join("..", "datasets", "PhiUSIIL_Phishing_URL_Dataset.csv")
+TARGET_COLUMN = "label"
+TEXT_COLUMNS = ["FILENAME", "URL", "Domain", "TLD", "Title"]
+ARTIFACT_PREFIX = "phiusiil"
 
 
-def load_dataset():
-    """
-    Load or create training dataset.
-    
-    Returns:
-        DataFrame with columns: ['url', 'label']
-        label: 1 = phishing, 0 = legitimate
-    """
-    
-    dataset_path = 'dataset.csv'
-    
-    print(f"Loading PhishTank dataset from {dataset_path}...")
-    
-    # Load PhishTank CSV (from repository root)
-    phishtank_path = '../dataset.csv'
-    
-    if os.path.exists(phishtank_path):
-        # Load PhishTank data
-        print(f"  Reading PhishTank CSV (56K+ URLs)...")
-        phish_df = pd.read_csv(phishtank_path)
-        phishing_urls = phish_df['url'].tolist()
-        print(f"✓ Loaded {len(phishing_urls)} phishing URLs from PhishTank")
-        
-        # Use MAXIMUM data available for training
-        # RTX 3060 can handle 10K+ URLs easily
-        sample_size = min(10000, len(phishing_urls))  # Use up to 10K phishing URLs
-        phishing_urls = phishing_urls[:sample_size]
-        print(f"  Using {sample_size} phishing URLs for training (GPU-accelerated)")
-    else:
-        print(f"⚠ PhishTank dataset not found at {phishtank_path}")
-        phishing_urls = []
-    
-    # Add legitimate URLs (expanded list)
-    legitimate_urls = LEGITIMATE_URLS
-    print(f"✓ Using {len(legitimate_urls)} legitimate URLs")
-    
-    # Create balanced dataset
-    # Use 2:1 ratio (phishing:legitimate) which is realistic for security
-    if len(phishing_urls) > 0:
-        phishing_sample = phishing_urls[:len(legitimate_urls) * 40]  # 40:1 ratio for realistic imbalance
-        phishing_sample = phishing_urls[:min(len(phishing_urls), 10000)]  # Cap at 10K
-    else:
-        phishing_sample = []
-    
-    # Create dataset - MUCH LARGER now
-    phishing_data = [{'url': url, 'label': 1} for url in phishing_sample]
-    
-    # Replicate legitimate URLs to create balance
-    # Duplicate legitimate URLs to balance against phishing URLs
-    legitimate_sample = []
-    while len(legitimate_sample) < min(len(phishing_sample) // 20, 5000):  # Up to 5K legit URLs
-        legitimate_sample.extend(legitimate_urls)
-    legitimate_sample = legitimate_sample[:min(len(phishing_sample) // 20, 5000)]
-    
-    legitimate_data = [{'url': url, 'label': 0} for url in legitimate_sample]
-    
-    dataset = phishing_data + legitimate_data
-    df = pd.DataFrame(dataset)
-    
-    # Shuffle dataset
-    df = df.sample(frac=1.0, random_state=42).reset_index(drop=True)
-    
-    print(f"\nDataset composition:")
-    print(f"  Phishing (label=1): {len(phishing_data)} URLs")
-    print(f"  Legitimate (label=0): {len(legitimate_data)} URLs")
-    print(f"  Total: {len(df)} URLs")
-    print(f"  Ratio: {len(phishing_data)/len(legitimate_data):.1f}:1 (realistic imbalance)")
-    
-    return df
+def evaluate_model(y_true, y_pred, y_proba, train_time):
+    return {
+        "f1": float(f1_score(y_true, y_pred)),
+        "accuracy": float(accuracy_score(y_true, y_pred)),
+        "precision": float(precision_score(y_true, y_pred)),
+        "recall": float(recall_score(y_true, y_pred)),
+        "roc_auc": float(roc_auc_score(y_true, y_proba)),
+        "time": float(train_time),
+        "cm": confusion_matrix(y_true, y_pred).tolist(),
+    }
 
 
-def extract_dataset_features(urls, labels):
-    """
-    Extract features from all URLs in dataset.
-    
-    Returns:
-        Tuple of (X, y) where X is features array, y is labels
-    """
-    X = []
-    y = []
-    invalid_count = 0
-    
-    for url, label in zip(urls, labels):
-        try:
-            features, _ = extract_features(url)
-            
-            # Validate features
-            if not validate_features(features):
-                print(f"Warning: Invalid features for URL: {url}")
-                invalid_count += 1
-                continue
-            
-            X.append(features)
-            y.append(label)
-        except Exception as e:
-            print(f"Error extracting features from {url}: {e}")
-            invalid_count += 1
-            continue
-    
-    if invalid_count > 0:
-        print(f"Skipped {invalid_count} URLs due to errors")
-    
-    return np.array(X), np.array(y)
+print("=" * 80)
+print("LEVEL-1 TRAINING (PHIUSIIL MULTI-COLUMN FEATURES)")
+print("=" * 80)
 
+if not os.path.exists(DATASET_PATH):
+    print(f"Dataset not found: {DATASET_PATH}")
+    raise SystemExit(1)
 
-def train_model(X_train, y_train, model_type='random_forest'):
-    """
-    Train phishing detection model.
-    
-    Args:
-        X_train: Training features
-        y_train: Training labels
-        model_type: 'logistic_regression' or 'random_forest'
-        
-    Returns:
-        Trained model
-    """
-    
-    # Use Random Forest for better performance with larger datasets
-    if model_type == 'logistic_regression':
-        print("Training Logistic Regression model...")
-        model = LogisticRegression(
-            max_iter=1000,
-            random_state=42,
-            class_weight='balanced',
-            n_jobs=-1  # Use all CPU cores
-        )
-    elif model_type == 'random_forest':
-        print("Training Random Forest model (with all available CPU cores)...")
-        print(f"  Data size: {X_train.shape[0]} samples")
-        model = RandomForestClassifier(
-            n_estimators=200,           # Increased from 100
-            max_depth=20,               # Increased from 15
-            min_samples_split=5,        # Reduced for more complex trees
-            min_samples_leaf=2,         # Reduced for more complex trees
-            random_state=42,
-            class_weight='balanced',
-            n_jobs=-1,                  # Use all CPU cores
-            verbose=1                   # Show training progress
-        )
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
-    
-    print(f"Starting training...")
-    model.fit(X_train, y_train)
-    print(f"✓ Training complete")
-    
-    return model
+print("\nGPU Status:")
+print(f"   CUDA Available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"   Device: {torch.cuda.get_device_name(0)}")
+    print(f"   Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
 
+print(f"\nLoading dataset: {DATASET_PATH}")
+df = pd.read_csv(DATASET_PATH)
 
-def evaluate_model(model, X_val, y_val, X_test, y_test, set_name=''):
-    """
-    Evaluate model performance on validation and test sets.
-    
-    Returns:
-        Dictionary with metrics
-    """
-    
-    # Validation predictions
-    y_val_pred = model.predict(X_val)
-    y_val_proba = model.predict_proba(X_val)[:, 1]
-    
-    # Test predictions
-    y_test_pred = model.predict(X_test)
-    y_test_proba = model.predict_proba(X_test)[:, 1]
-    
-    # Calculate metrics
-    metrics = {
-        'validation': {
-            'accuracy': accuracy_score(y_val, y_val_pred),
-            'precision': precision_score(y_val, y_val_pred, zero_division=0),
-            'recall': recall_score(y_val, y_val_pred, zero_division=0),
-            'f1': f1_score(y_val, y_val_pred, zero_division=0),
-            'confusion_matrix': confusion_matrix(y_val, y_val_pred).tolist()
+required_columns = set(TEXT_COLUMNS + [TARGET_COLUMN])
+missing_required = [col for col in required_columns if col not in df.columns]
+if missing_required:
+    print(f"Missing required columns: {missing_required}")
+    raise SystemExit(1)
+
+feature_candidates = [col for col in df.columns if col not in set(TEXT_COLUMNS + [TARGET_COLUMN])]
+numeric_features = df[feature_candidates].select_dtypes(include=[np.number]).columns.tolist()
+non_numeric_excluded = [col for col in feature_candidates if col not in numeric_features]
+
+X = df[numeric_features].astype(np.float32)
+y = df[TARGET_COLUMN].astype(np.int32)
+
+print(f"Rows: {len(df):,}")
+print(f"Total columns: {len(df.columns)}")
+print(f"Numeric training features: {len(numeric_features)}")
+print(f"Excluded text columns: {TEXT_COLUMNS}")
+if non_numeric_excluded:
+    print(f"Excluded non-numeric columns: {non_numeric_excluded}")
+
+print(f"Phishing (1): {(y == 1).sum():,} ({100 * (y == 1).mean():.1f}%)")
+print(f"Legitimate (0): {(y == 0).sum():,} ({100 * (y == 0).mean():.1f}%)")
+
+print("\nSplitting data (70/15/15)...")
+split_start = time.time()
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.15, random_state=42, stratify=y
+)
+X_train, X_val, y_train, y_val = train_test_split(
+    X_train, y_train, test_size=0.176, random_state=42, stratify=y_train
+)
+
+split_time = time.time() - split_start
+print(f"Train: {len(X_train):,}")
+print(f"Val  : {len(X_val):,}")
+print(f"Test : {len(X_test):,}")
+
+models = {}
+results = {}
+
+print("\n" + "=" * 80)
+print("Training XGBoost")
+print("=" * 80)
+
+xgb_start = time.time()
+xgb_model = xgb.XGBClassifier(
+    n_estimators=400,
+    max_depth=9,
+    learning_rate=0.08,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    objective="binary:logistic",
+    eval_metric="auc",
+    random_state=42,
+    n_jobs=-1,
+    tree_method="hist",
+    device="cuda" if torch.cuda.is_available() else "cpu",
+)
+
+xgb_model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+xgb_time = time.time() - xgb_start
+
+y_pred_xgb = xgb_model.predict(X_test)
+y_proba_xgb = xgb_model.predict_proba(X_test)[:, 1]
+results["xgboost"] = evaluate_model(y_test, y_pred_xgb, y_proba_xgb, xgb_time)
+models["xgboost"] = xgb_model
+
+print(f"XGBoost F1: {results['xgboost']['f1']:.4f}")
+print(f"Accuracy: {results['xgboost']['accuracy']:.4f}")
+print(f"ROC-AUC : {results['xgboost']['roc_auc']:.4f}")
+print(f"Time    : {xgb_time:.2f}s")
+
+print("\n" + "=" * 80)
+print("Training LightGBM")
+print("=" * 80)
+
+lgb_start = time.time()
+lgb_model = lgb.LGBMClassifier(
+    n_estimators=400,
+    max_depth=9,
+    learning_rate=0.08,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    random_state=42,
+    n_jobs=-1,
+    verbose=-1,
+)
+
+lgb_model.fit(X_train, y_train)
+lgb_time = time.time() - lgb_start
+
+y_pred_lgb = lgb_model.predict(X_test)
+y_proba_lgb = lgb_model.predict_proba(X_test)[:, 1]
+results["lightgbm"] = evaluate_model(y_test, y_pred_lgb, y_proba_lgb, lgb_time)
+models["lightgbm"] = lgb_model
+
+print(f"LightGBM F1: {results['lightgbm']['f1']:.4f}")
+print(f"Accuracy : {results['lightgbm']['accuracy']:.4f}")
+print(f"ROC-AUC  : {results['lightgbm']['roc_auc']:.4f}")
+print(f"Time     : {lgb_time:.2f}s")
+
+print("\n" + "=" * 80)
+print("Training Ensemble (soft voting)")
+print("=" * 80)
+
+ensemble_model = VotingClassifier(
+    estimators=[("xgb", xgb_model), ("lgb", lgb_model)],
+    voting="soft",
+    weights=[1.05, 1.0],
+)
+ensemble_model.fit(X_train, y_train)
+
+y_pred_ens = ensemble_model.predict(X_test)
+y_proba_ens = ensemble_model.predict_proba(X_test)[:, 1]
+results["ensemble"] = evaluate_model(y_test, y_pred_ens, y_proba_ens, xgb_time + lgb_time)
+
+print(f"Ensemble F1: {results['ensemble']['f1']:.4f}")
+print(f"Accuracy  : {results['ensemble']['accuracy']:.4f}")
+print(f"ROC-AUC   : {results['ensemble']['roc_auc']:.4f}")
+
+best_model_name = max(results, key=lambda model_name: results[model_name]["f1"])
+
+print("\n" + "=" * 80)
+print("RESULTS SUMMARY")
+print("=" * 80)
+for name, metrics in results.items():
+    print(
+        f"{name:10s} | F1: {metrics['f1']:.4f} | Acc: {metrics['accuracy']:.4f} | "
+        f"AUC: {metrics['roc_auc']:.4f}"
+    )
+
+print(f"\nBEST MODEL: {best_model_name.upper()}")
+
+print("\nSaving artifacts...")
+os.makedirs("models", exist_ok=True)
+
+trained_models_path = f"models/{ARTIFACT_PREFIX}_trained_models.pkl"
+results_path = f"models/{ARTIFACT_PREFIX}_training_results.json"
+config_path = f"models/{ARTIFACT_PREFIX}_best_model_config.json"
+feature_contract_path = f"models/{ARTIFACT_PREFIX}_feature_contract.json"
+
+with open(trained_models_path, "wb") as handle:
+    pickle.dump(
+        {
+            "models": models,
+            "voting": ensemble_model,
+            "best_model": best_model_name,
+            "results": results,
+            "feature_columns": numeric_features,
+            "dataset_source": "PhiUSIIL_Phishing_URL_Dataset.csv",
+            "excluded_columns": TEXT_COLUMNS,
+            "label_column": TARGET_COLUMN,
         },
-        'test': {
-            'accuracy': accuracy_score(y_test, y_test_pred),
-            'precision': precision_score(y_test, y_test_pred, zero_division=0),
-            'recall': recall_score(y_test, y_test_pred, zero_division=0),
-            'f1': f1_score(y_test, y_test_pred, zero_division=0),
-            'confusion_matrix': confusion_matrix(y_test, y_test_pred).tolist()
-        }
-    }
-    
-    print(f"\n{'='*60}")
-    print(f"Model Evaluation Results {set_name}")
-    print(f"{'='*60}")
-    print(f"\nVALIDATION SET:")
-    print(f"  Accuracy:  {metrics['validation']['accuracy']:.4f}")
-    print(f"  Precision: {metrics['validation']['precision']:.4f}")
-    print(f"  Recall:    {metrics['validation']['recall']:.4f}")
-    print(f"  F1-Score:  {metrics['validation']['f1']:.4f}")
-    print(f"\nTEST SET:")
-    print(f"  Accuracy:  {metrics['test']['accuracy']:.4f}")
-    print(f"  Precision: {metrics['test']['precision']:.4f}")
-    print(f"  Recall:    {metrics['test']['recall']:.4f}")
-    print(f"  F1-Score:  {metrics['test']['f1']:.4f}")
-    print(f"\nConfusion Matrix (Test):")
-    print(f"  True Negatives:  {metrics['test']['confusion_matrix'][0][0]}")
-    print(f"  False Positives: {metrics['test']['confusion_matrix'][0][1]}")
-    print(f"  False Negatives: {metrics['test']['confusion_matrix'][1][0]}")
-    print(f"  True Positives:  {metrics['test']['confusion_matrix'][1][1]}")
-    print(f"{'='*60}\n")
-    
-    return metrics
-
-
-def save_model(model, model_path='url_model.pkl'):
-    """
-    Save trained model to pickle file.
-    """
-    with open(model_path, 'wb') as f:
-        pickle.dump(model, f)
-    print(f"Model saved to {model_path}")
-
-
-def save_metrics(metrics, metrics_path='model_metrics.json'):
-    """
-    Save evaluation metrics to JSON file.
-    """
-    with open(metrics_path, 'w') as f:
-        json.dump(metrics, f, indent=2)
-    print(f"Metrics saved to {metrics_path}")
-
-
-def save_feature_config(feature_names, config_path='feature_config.json'):
-    """
-    Save feature names and configuration for later reference.
-    Important: must match Java implementation.
-    """
-    config = {
-        'version': '1.0',
-        'feature_names': feature_names,
-        'num_features': len(feature_names),
-        'threshold': 0.7  # Deep analysis trigger threshold
-    }
-    
-    with open(config_path, 'w') as f:
-        json.dump(config, f, indent=2)
-    print(f"Feature config saved to {config_path}")
-
-
-def main():
-    """
-    Main training pipeline with expanded dataset and timing.
-    """
-    
-    import time
-    
-    print("="*70)
-    print("Web Integrity Shield - Level-1 Model Training (EXPANDED DATASET)")
-    print("="*70)
-    print()
-    
-    start_time = time.time()
-    
-    # Step 1: Load dataset
-    df = load_dataset()
-    print(f"Dataset size: {len(df)} URLs")
-    print(f"  Phishing: {(df['label'] == 1).sum()}")
-    print(f"  Legitimate: {(df['label'] == 0).sum()}\n")
-    
-    # Step 2: Extract features
-    print("Extracting features from URLs (deterministic)...")
-    t0 = time.time()
-    X, y = extract_dataset_features(df['url'].values, df['label'].values)
-    t_features = time.time() - t0
-    print(f"Features extracted: {X.shape} in {t_features:.2f}s")
-    print(f"Feature names: {get_feature_names()}\n")
-    
-    # Step 3: Split dataset (70% train, 15% val, 15% test)
-    print("Splitting dataset...")
-    X_train, X_temp, y_train, y_temp = train_test_split(
-        X, y, test_size=0.30, random_state=42, stratify=y
+        handle,
     )
-    X_val, X_test, y_val, y_test = train_test_split(
-        X_temp, y_temp, test_size=0.50, random_state=42, stratify=y_temp
+print(f"Saved: {trained_models_path}")
+
+with open(results_path, "w", encoding="utf-8") as handle:
+    json.dump(results, handle, indent=2)
+print(f"Saved: {results_path}")
+
+with open(config_path, "w", encoding="utf-8") as handle:
+    json.dump(
+        {
+            "best_model": best_model_name,
+            "metrics": results[best_model_name],
+            "dataset": {
+                "source": "PhiUSIIL_Phishing_URL_Dataset.csv",
+                "total_rows": len(df),
+                "phishing": int((y == 1).sum()),
+                "legitimate": int((y == 0).sum()),
+            },
+            "features": {
+                "count": len(numeric_features),
+                "names": numeric_features,
+                "excluded_text_columns": TEXT_COLUMNS,
+            },
+            "note": "Other two datasets are intentionally kept separate because they are URL-only.",
+            "timing_seconds": {
+                "split": split_time,
+                "xgboost": xgb_time,
+                "lightgbm": lgb_time,
+                "total": split_time + xgb_time + lgb_time,
+            },
+        },
+        handle,
+        indent=2,
     )
-    
-    print(f"Data split:")
-    print(f"  Training: {len(X_train)} URLs")
-    print(f"  Validation: {len(X_val)} URLs")
-    print(f"  Test: {len(X_test)} URLs\n")
-    
-    # Step 4: Train model (Random Forest for larger dataset)
-    print("=" * 70)
-    t0 = time.time()
-    model = train_model(X_train, y_train, model_type='random_forest')
-    t_train = time.time() - t0
-    print(f"Training completed in {t_train:.2f}s\n")
-    print("=" * 70)
-    
-    # Step 5: Evaluate model
-    metrics = evaluate_model(model, X_val, y_val, X_test, y_test)
-    
-    # Step 6: Save model and config
-    save_model(model)
-    save_metrics(metrics)
-    save_feature_config(get_feature_names())
-    
-    total_time = time.time() - start_time
-    
-    print("="*70)
-    print("TRAINING COMPLETE")
-    print("="*70)
-    print(f"Feature extraction: {t_features:.2f}s")
-    print(f"Model training: {t_train:.2f}s")
-    print(f"Total time: {total_time:.2f}s")
-    print(f"\nNext step: Run export_onnx.py to convert model to binary format")
+print(f"Saved: {config_path}")
 
+url_derived_features = {
+    "URLLength",
+    "DomainLength",
+    "IsDomainIP",
+    "TLDLength",
+    "NoOfSubDomain",
+    "HasObfuscation",
+    "NoOfObfuscatedChar",
+    "ObfuscationRatio",
+    "NoOfLettersInURL",
+    "LetterRatioInURL",
+    "NoOfDegitsInURL",
+    "DegitRatioInURL",
+    "NoOfEqualsInURL",
+    "NoOfQMarkInURL",
+    "NoOfAmpersandInURL",
+    "NoOfOtherSpecialCharsInURL",
+    "SpacialCharRatioInURL",
+    "IsHTTPS",
+    "URLSimilarityIndex",
+    "CharContinuationRate",
+    "URLCharProb",
+}
 
-if __name__ == '__main__':
-    main()
+with open(feature_contract_path, "w", encoding="utf-8") as handle:
+    json.dump(
+        {
+            "total_features": len(numeric_features),
+            "feature_columns": numeric_features,
+            "runtime_extraction_plan": {
+                "url_derived_features": [f for f in numeric_features if f in url_derived_features],
+                "page_content_or_lookup_features": [f for f in numeric_features if f not in url_derived_features],
+            },
+            "next_step": "Implement Level-1 runtime extractor for all feature_columns from visited site context.",
+        },
+        handle,
+        indent=2,
+    )
+print(f"Saved: {feature_contract_path}")
+
+print("\nTraining complete (PhiUSIIL-only Level-1 model)")

@@ -43,6 +43,7 @@ public class Level2Service {
      * @param riskScore Level-1 risk score
      * @return DeepAnalyzeResponse with Level-2 analysis, or null if fails
      */
+    @SuppressWarnings("null")
     public DeepAnalyzeResponse analyze(String url, double riskScore) {
         long startTime = System.currentTimeMillis();
         boolean fallback = false;

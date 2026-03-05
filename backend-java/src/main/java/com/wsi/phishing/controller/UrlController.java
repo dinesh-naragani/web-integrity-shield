@@ -18,11 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.wsi.phishing.dto.DeepAnalyzeResponse;
 import com.wsi.phishing.dto.UrlRequest;
 import com.wsi.phishing.dto.UrlResponse;
+import com.wsi.phishing.service.HybridDetectionService;
 import com.wsi.phishing.service.Level2Service;
 import com.wsi.phishing.service.OnnxModelService;
-import com.wsi.phishing.util.FeatureExtractor;
-
-
 /**
  * REST Controller for URL Phishing Check
  * 
@@ -44,7 +42,10 @@ public class UrlController {
     
     @Autowired
     private Level2Service level2Service;
-    
+
+    @Autowired
+    private HybridDetectionService hybridDetectionService;
+
     /**
      * Check URL for phishing characteristics at Level-1
      * 
@@ -73,30 +74,14 @@ public class UrlController {
                     .body(new ErrorResponse("Invalid URL format"));
             }
             
-            // Extract features (deterministic)
-            log.debug("Extracting features from URL");
-            float[] features = FeatureExtractor.extractFeatures(url);
-            
-            // Validate features
-            if (!FeatureExtractor.validateFeatures(features)) {
-                log.error("Feature validation failed for URL: {}", maskUrl(url));
-                return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("Feature extraction validation failed"));
-            }
-            
-            log.debug("Features extracted successfully");
-            
-            // Run ONNX inference
-            double riskScore = onnxModelService.predict(features);
-            
-            // Determine label based on risk score
-            String level1Label = riskScore >= 0.5 ? "PHISHING" : "LEGITIMATE";
+            HybridDetectionService.HybridDetectionResult hybridResult = hybridDetectionService.detect(url);
+            double riskScore = hybridResult.riskScore();
+            String level1Label = hybridResult.verdict();
             
             // Determine if Level-2 deep analysis should be triggered
             boolean triggerLevel2 = riskScore >= LEVEL2_THRESHOLD;
             
-            log.info("Level-1 Result - URL: {}, Risk: {:.4f}, Label: {}, TriggerL2: {}",
+            log.info("Level-1 Result - URL: {}, Risk: {}, Label: {}, TriggerL2: {}",
                 maskUrl(url), riskScore, level1Label, triggerLevel2);
             
             // Build response with Level-1 data
@@ -107,7 +92,7 @@ public class UrlController {
                 .triggerLevel2(triggerLevel2)
                 .level2Status(triggerLevel2 ? "FALLBACK" : "NOT_TRIGGERED")
                 .finalVerdict(level1Label)  // Default to Level-1 label
-                .reasons(new ArrayList<>())
+                .reasons(new ArrayList<>(java.util.List.of(hybridResult.reason())))
                 .build();
             
             // Call Level-2 service if threshold triggered
@@ -124,8 +109,8 @@ public class UrlController {
                     response.setReasons(level2Response.getReasons() != null ? 
                         level2Response.getReasons() : new ArrayList<>());
                     
-                    log.info("Level-2 Result Merged - AnalysisId: {}, L2Score: {:.3f}, Verdict: {}",
-                        level2Response.getAnalysisId(), level2Response.getLevel2Score(), 
+                    log.info("Level-2 Result Merged - AnalysisId: {}, Verdict: {}",
+                        level2Response.getAnalysisId(),
                         level2Response.getFinalVerdict());
                 } else {
                     // Level-2 failed - fallback to Level-1

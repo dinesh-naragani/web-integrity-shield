@@ -1,0 +1,53 @@
+{
+  "model_type": "xgboost",
+  "format": "onnx",
+  "num_features": 22,
+  "feature_names": [
+    "URLLength",
+    "DomainLength",
+    "TLDLength",
+    "IsDomainIP",
+    "NoOfSubDomain",
+    "IsHTTPS",
+    "NoOfLettersInURL",
+    "NoOfDigitsInURL",
+    "NoOfEqualsInURL",
+    "NoOfQMarkInURL",
+    "NoOfAmpersandInURL",
+    "NoOfOtherSpecialCharsInURL",
+    "LetterRatioInURL",
+    "DigitRatioInURL",
+    "SpecialCharRatioInURL",
+    "CharContinuationRate",
+    "URLCharProb",
+    "DomainHasHyphen",
+    "URLHasDblSlash",
+    "HasObfuscation",
+    "TLDIsLegitimate",
+    "DomainIsKnownSafe"
+  ],
+  "input_shape": [
+    null,
+    22
+  ],
+  "output_shape": [
+    null,
+    2
+  ],
+  "input_name": "float_input",
+  "output_name": "probabilities",
+  "performance": {
+    "f1_score_cv": 0.9976602517854525,
+    "accuracy_cv": 0.9973183555396018,
+    "precision": 0.9958439997554691,
+    "recall": 0.9994832041343671,
+    "roc_auc": 0.9987153720080275
+  },
+  "overfitting_check": {
+    "f1_train_test_gap": 0.000744794463645726,
+    "accuracy_train_test_gap": 0.0008541143182921873,
+    "status": "NO OVERFITTING"
+  },
+  "exported_at": "2026-03-05T11:08:08.470855",
+  "notes": "Includes domain whitelist and TLD legitimacy checks to prevent false positives"
+}

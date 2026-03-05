@@ -1,0 +1,37 @@
+# Virtual environments
+venv_gpu/
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data and models
+*.pkl
+*.onnx
+*.joblib
+!models/
+
+# Large files
+*.csv
+*.h5
+*.pt
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db

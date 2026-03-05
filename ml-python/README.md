@@ -4,11 +4,16 @@ This folder contains the Python-based ML training and export pipeline for the Le
 
 ## Overview
 
-The ML pipeline:
-1. **Extracts features** from URLs (deterministically)
-2. **Trains a Logistic Regression model** on phishing/legitimate URL dataset
-3. **Exports to ONNX** format for Java backend integration
-4. **Validates inference** to ensure Python ↔ ONNX consistency
+The ML pipeline currently follows a split strategy:
+1. **Level-1 primary training** uses `PhiUSIIL_Phishing_URL_Dataset.csv` (multi-column tabular features)
+2. **URL-only datasets** (`Phishing URLs.csv`, `URL dataset.csv`) are kept **separate** as secondary datasets
+3. **Trains XGBoost + LightGBM + Ensemble** on PhiUSIIL numeric columns
+4. **Saves production-ready pickle artifacts** and feature contract metadata
+
+### Dataset Strategy (Current)
+- Primary Level-1 model source: `../datasets/PhiUSIIL_Phishing_URL_Dataset.csv`
+- Kept separate (URL-only): `../datasets/Phishing URLs.csv`, `../datasets/URL dataset.csv`
+- Separation utility script: `prepare_separate_datasets.py`
 
 ## Architecture
 
